@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mala Counter</title>
+<meta name="theme-color" content="#17110E">
+<meta name="description" content="A digital japa mala counter with focused auto-count mode.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mala Counter">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #17110E;
+    --panel: #221812;
+    --panel-hi: #2B1E16;
+    --gold: #C9A227;
+    --gold-dim: #6B5A1E;
+    --saffron: #E07A2C;
+    --oxblood: #7A2E2E;
+    --ivory: #EFE6DA;
+    --ivory-dim: #A6988A;
+    --thread: #40302272;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: radial-gradient(900px 500px at 50% -8%, #2A1D14 0%, var(--bg) 62%);
+    color: var(--ivory);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center;
+    padding: 22px 16px 40px;
+  }
+
+  header{ text-align:center; margin-bottom:6px; position:relative; width:100%; max-width:380px; }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px; letter-spacing:.2em; text-transform:uppercase; color: var(--saffron);
+  }
+  h1{
+    font-family:'Fraunces', serif; font-weight:600; font-size:26px; margin:4px 0 0;
+    letter-spacing:.01em;
+  }
+  .gear{
+    position:absolute; right:0; top:-2px; background:none; border:none; color: var(--ivory-dim);
+    font-size:18px; cursor:pointer; padding:6px;
+  }
+  .gear:hover{ color: var(--ivory); }
+
+  .focus-panel{
+    width:100%; max-width:380px; background: var(--panel); border:1px solid #33261a; border-radius:14px;
+    padding: 12px 14px; margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .focus-title{ font-size:13px; font-weight:500; color: var(--ivory); }
+  .focus-sub{ font-size:11px; color: var(--ivory-dim); margin-top:2px; }
+  .focus-controls{ display:flex; align-items:center; gap:6px; }
+  .stepper{
+    width:26px; height:26px; border-radius:8px; border:1px solid #3a2c1f; background: var(--panel-hi);
+    color: var(--ivory-dim); font-size:15px; cursor:pointer; line-height:1;
+  }
+  .stepper:hover{ color: var(--ivory); }
+  .interval-input{
+    width:42px; background: var(--panel-hi); border:1px solid #3a2c1f; border-radius:8px; color: var(--ivory);
+    font-family:'JetBrains Mono', monospace; font-size:13px; text-align:center; padding:5px 2px;
+  }
+  .focus-toggle{
+    margin-left:6px; padding:8px 14px; border-radius:10px; border:1px solid var(--gold-dim);
+    background: rgba(201,162,39,0.1); color: var(--gold); font-size:12.5px; font-weight:600; cursor:pointer;
+    white-space:nowrap;
+  }
+  .focus-toggle.active{
+    background: var(--saffron); border-color: var(--saffron); color:#1B120A;
+  }
+
+  .ring-wrap{
+    width: min(78vw, 300px); aspect-ratio:1/1; position:relative; margin: 22px 0 18px;
+  }
+  .bead{
+    position:absolute; width:6px; height:6px; border-radius:50%;
+    background: var(--thread);
+    transform: translate(-50%,-50%);
+    transition: background .15s, box-shadow .15s;
+  }
+  .bead.lit{
+    background: var(--gold);
+    box-shadow: 0 0 6px rgba(201,162,39,0.7);
+  }
+  .tap-core{
+    position:absolute; inset: 20%;
+    border-radius:50%;
+    background: radial-gradient(circle at 32% 28%, #3A2A1C, var(--panel-hi) 55%, var(--panel));
+    box-shadow:
+      0 0 0 1px rgba(201,162,39,0.18),
+      inset 0 2px 8px rgba(255,255,255,0.05),
+      0 14px 30px rgba(0,0,0,0.45);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    cursor:pointer;
+    transition: transform .08s;
+  }
+  .tap-core:active{ transform: scale(0.96); }
+  .tap-core.pulse{ animation: pulse .3s ease; }
+  @keyframes pulse{
+    0%{ box-shadow: 0 0 0 0 rgba(201,162,39,0.5), 0 14px 30px rgba(0,0,0,0.45);}
+    100%{ box-shadow: 0 0 0 22px rgba(201,162,39,0), 0 14px 30px rgba(0,0,0,0.45);}
+  }
+  .tap-core.focus-active{
+    animation: focusGlow var(--cycle, 2s) ease-in-out infinite;
+  }
+  @keyframes focusGlow{
+    0%{ box-shadow: 0 0 0 0 rgba(224,122,44,0.45), inset 0 2px 8px rgba(255,255,255,0.05), 0 14px 30px rgba(0,0,0,0.45); }
+    70%{ box-shadow: 0 0 0 14px rgba(224,122,44,0), inset 0 2px 8px rgba(255,255,255,0.05), 0 14px 30px rgba(0,0,0,0.45); }
+    100%{ box-shadow: 0 0 0 0 rgba(224,122,44,0), inset 0 2px 8px rgba(255,255,255,0.05), 0 14px 30px rgba(0,0,0,0.45); }
+  }
+  .ring-count{
+    font-family:'JetBrains Mono', monospace; font-weight:700; font-size:40px; color: var(--gold);
+    text-shadow: 0 0 14px rgba(201,162,39,0.3);
+    line-height:1;
+  }
+  .ring-of{
+    font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--ivory-dim); margin-top:4px;
+  }
+  .ring-tap-label{
+    font-size:10px; letter-spacing:.14em; text-transform:uppercase; color: var(--ivory-dim);
+    margin-top:10px;
+  }
+
+  .completed-badge{
+    font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--saffron);
+    background: rgba(224,122,44,0.1); border:1px solid rgba(224,122,44,0.35);
+    padding: 4px 12px; border-radius:20px; margin-bottom:14px;
+  }
+
+  .row-controls{
+    display:flex; gap:10px; width:100%; max-width:300px; margin-bottom:22px;
+  }
+  .row-controls button{
+    flex:1; padding:12px 0; border-radius:12px; border:1px solid #3a2c1f;
+    background: var(--panel); color: var(--ivory-dim); font-family:'IBM Plex Sans';
+    font-size:13px; font-weight:500; cursor:pointer; transition: background .15s, color .15s;
+  }
+  .row-controls button:hover{ background: var(--panel-hi); color: var(--ivory); }
+
+  .stats{
+    width:100%; max-width:380px; display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;
+  }
+  .stat{
+    background: var(--panel); border:1px solid #33261a; border-radius:14px; padding:12px 14px;
+  }
+  .stat .label{ font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color: var(--ivory-dim); }
+  .stat .value{ font-family:'JetBrains Mono', monospace; font-size:20px; font-weight:700; color: var(--ivory); margin-top:4px; }
+  .stat.flash{ animation: statFlash .5s ease; }
+  @keyframes statFlash{
+    0%{ background: rgba(224,122,44,0.35); border-color: var(--saffron); }
+    100%{ background: var(--panel); border-color: #33261a; }
+  }
+
+  .history{
+    width:100%; max-width:380px; background: var(--panel); border:1px solid #33261a; border-radius:14px; padding:14px 16px 10px;
+  }
+  .history .label{ font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color: var(--ivory-dim); margin-bottom:10px; }
+  .bars{ display:flex; align-items:flex-end; gap:8px; height:60px; }
+  .bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; }
+  .bar{ width:100%; max-width:20px; background: linear-gradient(180deg, var(--saffron), var(--gold-dim)); border-radius:3px 3px 0 0; min-height:2px; }
+  .bar-day{ font-size:9px; color: var(--ivory-dim); font-family:'JetBrains Mono', monospace; }
+
+  /* settings panel */
+  .overlay{
+    position:fixed; inset:0; background: rgba(10,7,5,0.6); display:none; align-items:flex-end; justify-content:center; z-index:10;
+  }
+  .overlay.show{ display:flex; }
+  .sheet{
+    background: var(--panel-hi); width:100%; max-width:420px; border-radius:20px 20px 0 0;
+    padding: 20px 20px 28px; border-top:1px solid #3a2c1f;
+  }
+  .sheet h2{ font-family:'Fraunces', serif; font-size:18px; margin:0 0 16px; }
+  .field{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #33261a; }
+  .field:last-of-type{ border-bottom:none; }
+  .field-label{ font-size:13.5px; color: var(--ivory); }
+  .field-sub{ font-size:11px; color: var(--ivory-dim); margin-top:2px; }
+  .toggle{
+    width:42px; height:24px; border-radius:14px; background:#3a2c1f; position:relative; cursor:pointer; border:none; flex-shrink:0;
+  }
+  .toggle::after{
+    content:''; position:absolute; width:18px; height:18px; border-radius:50%; background: var(--ivory-dim);
+    top:3px; left:3px; transition: transform .15s, background .15s;
+  }
+  .toggle.on{ background: rgba(201,162,39,0.3); }
+  .toggle.on::after{ transform: translateX(18px); background: var(--gold); }
+  .num-input{
+    width:64px; background: var(--panel); border:1px solid #3a2c1f; border-radius:8px; color: var(--ivory);
+    font-family:'JetBrains Mono', monospace; font-size:14px; text-align:center; padding:8px 4px;
+  }
+  .danger-btn{
+    width:100%; margin-top:14px; background: rgba(122,46,46,0.18); border:1px solid var(--oxblood);
+    color:#E39C9C; padding:11px 0; border-radius:10px; font-size:13px; cursor:pointer;
+  }
+  .close-sheet{
+    width:100%; margin-top:10px; background:none; border:none; color: var(--ivory-dim); padding:10px 0; font-size:13px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Naam Jap · Tasbeeh · Zikr</div>
+  <h1>Mala Counter</h1>
+  <button class="gear" id="gearBtn" title="Settings">⚙</button>
+</header>
+
+<div class="completed-badge" id="completedBadge">0 malas completed</div>
+
+<div class="ring-wrap" id="ringWrap">
+  <div class="tap-core" id="tapCore">
+    <div class="ring-count" id="ringCount">0</div>
+    <div class="ring-of" id="ringOf">of 108</div>
+    <div class="ring-tap-label" id="tapLabel">tap to count</div>
+  </div>
+</div>
+
+<div class="focus-panel">
+  <div>
+    <div class="focus-title">Focused mode</div>
+    <div class="focus-sub">Auto-counts every <span id="intervalDisplay">2</span>s</div>
+  </div>
+  <div class="focus-controls">
+    <button class="stepper" id="intervalDown">−</button>
+    <input class="interval-input" id="intervalInput" type="number" min="1" max="5" step="0.5" value="2">
+    <button class="stepper" id="intervalUp">+</button>
+    <button class="focus-toggle" id="focusToggle">Start</button>
+  </div>
+</div>
+
+<div class="row-controls">
+  <button id="decBtn">− Undo</button>
+  <button id="resetTodayBtn">Reset today</button>
+</div>
+
+<div class="stats">
+  <div class="stat" id="todayStat">
+    <div class="label">Today</div>
+    <div class="value" id="todayVal">0</div>
+  </div>
+  <div class="stat">
+    <div class="label">Lifetime</div>
+    <div class="value" id="lifetimeVal">0</div>
+  </div>
+</div>
+
+<div class="history">
+  <div class="label">Last 7 days</div>
+  <div class="bars" id="bars"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2>Settings</h2>
+    <div class="field">
+      <div>
+        <div class="field-label">Haptic feedback</div>
+        <div class="field-sub">Vibrate on each count</div>
+      </div>
+      <button class="toggle" id="vibrateToggle"></button>
+    </div>
+    <div class="field">
+      <div>
+        <div class="field-label">Tap sound</div>
+        <div class="field-sub">Soft chime on each count</div>
+      </div>
+      <button class="toggle" id="soundToggle"></button>
+    </div>
+    <div class="field">
+      <div>
+        <div class="field-label">Mala size</div>
+        <div class="field-sub">Beads per round (default 108)</div>
+      </div>
+      <input class="num-input" id="malaSizeInput" type="number" min="1" max="1080" value="108">
+    </div>
+    <button class="danger-btn" id="resetAllBtn">Reset lifetime count &amp; history</button>
+    <button class="close-sheet" id="closeSheet">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'mala-counter:data';
+  let data = { lifetime:0, malaSize:108, vibrate:true, sound:true, focusInterval:2, days:{} };
+  let beadsBuilt = 0;
+  let focusTimer = null;
+  let focusRunning = false;
+
+  const ringWrap = document.getElementById('ringWrap');
+  const tapCore = document.getElementById('tapCore');
+  const ringCount = document.getElementById('ringCount');
+  const ringOf = document.getElementById('ringOf');
+  const completedBadge = document.getElementById('completedBadge');
+  const todayVal = document.getElementById('todayVal');
+  const todayStat = document.getElementById('todayStat');
+  const lifetimeVal = document.getElementById('lifetimeVal');
+  const bars = document.getElementById('bars');
+  const decBtn = document.getElementById('decBtn');
+  const resetTodayBtn = document.getElementById('resetTodayBtn');
+  const gearBtn = document.getElementById('gearBtn');
+  const overlay = document.getElementById('overlay');
+  const closeSheet = document.getElementById('closeSheet');
+  const vibrateToggle = document.getElementById('vibrateToggle');
+  const soundToggle = document.getElementById('soundToggle');
+  const malaSizeInput = document.getElementById('malaSizeInput');
+  const resetAllBtn = document.getElementById('resetAllBtn');
+  const tapLabel = document.getElementById('tapLabel');
+  const focusToggle = document.getElementById('focusToggle');
+  const intervalInput = document.getElementById('intervalInput');
+  const intervalDisplay = document.getElementById('intervalDisplay');
+  const intervalDown = document.getElementById('intervalDown');
+  const intervalUp = document.getElementById('intervalUp');
+
+  function todayKey(){
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function dayLabel(offset){
+    const d = new Date();
+    d.setDate(d.getDate() - offset);
+    return d.toLocaleDateString(undefined, { weekday:'short' }).slice(0,2);
+  }
+  function keyForOffset(offset){
+    const d = new Date();
+    d.setDate(d.getDate() - offset);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        data = Object.assign({ lifetime:0, malaSize:108, vibrate:true, sound:true, focusInterval:2, days:{} }, parsed);
+      }
+    }catch(e){ /* first run, use defaults */ }
+    buildBeads();
+    renderAll();
+    intervalInput.value = data.focusInterval;
+    intervalDisplay.textContent = data.focusInterval;
+  }
+
+  function save(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+    catch(e){ console.error('save failed', e); }
+  }
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch((e) => console.error('SW registration failed', e));
+    });
+  }
+
+  function buildBeads(){
+    document.querySelectorAll('.bead').forEach(b => b.remove());
+    const n = Math.max(1, Math.min(1080, data.malaSize));
+    for(let i=0;i<n;i++){
+      const angle = (i/n)*Math.PI*2 - Math.PI/2;
+      const x = 50 + 46*Math.cos(angle);
+      const y = 50 + 46*Math.sin(angle);
+      const bead = document.createElement('div');
+      bead.className = 'bead';
+      bead.style.left = x+'%';
+      bead.style.top = y+'%';
+      ringWrap.appendChild(bead);
+    }
+    beadsBuilt = n;
+    ringWrap.appendChild(tapCore); // keep core on top
+  }
+
+  function playChime(){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 660;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.26);
+    }catch(e){}
+  }
+
+  function renderAll(){
+    const size = Math.max(1, Math.min(1080, data.malaSize));
+    const todayCount = data.days[todayKey()] || 0;
+    const progress = todayCount % size;
+    const completed = Math.floor(todayCount / size);
+    ringCount.textContent = progress;
+    ringOf.textContent = 'of ' + size;
+    completedBadge.textContent = completed + (completed === 1 ? ' mala completed today' : ' malas completed today');
+    todayVal.textContent = todayCount;
+    lifetimeVal.textContent = data.lifetime;
+    malaSizeInput.value = size;
+    vibrateToggle.classList.toggle('on', !!data.vibrate);
+    soundToggle.classList.toggle('on', !!data.sound);
+    renderBeads(progress, size);
+    renderBars();
+  }
+
+  function renderBeads(progress, size){
+    const beadEls = ringWrap.querySelectorAll('.bead');
+    beadEls.forEach((el, i) => {
+      el.classList.toggle('lit', i < progress);
+    });
+  }
+
+  function renderBars(){
+    bars.innerHTML = '';
+    let max = 1;
+    const vals = [];
+    for(let o=6;o>=0;o--){
+      const v = data.days[keyForOffset(o)] || 0;
+      vals.push(v);
+      if(v > max) max = v;
+    }
+    vals.forEach((v, idx) => {
+      const offset = 6 - idx;
+      const col = document.createElement('div');
+      col.className = 'bar-col';
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      const h = Math.max(2, Math.round((v / max) * 52));
+      bar.style.height = h + 'px';
+      const lbl = document.createElement('div');
+      lbl.className = 'bar-day';
+      lbl.textContent = offset === 0 ? 'Today' : dayLabel(offset);
+      col.appendChild(bar);
+      col.appendChild(lbl);
+      bars.appendChild(col);
+    });
+  }
+
+  function increment(){
+    data.lifetime += 1;
+    const k = todayKey();
+    data.days[k] = (data.days[k] || 0) + 1;
+    save();
+    tapCore.classList.remove('pulse');
+    void tapCore.offsetWidth;
+    tapCore.classList.add('pulse');
+    if(data.vibrate && navigator.vibrate) navigator.vibrate(30);
+    if(data.sound) playChime();
+    renderAll();
+  }
+
+  function decrement(){
+    if(data.lifetime <= 0) return;
+    data.lifetime -= 1;
+    const k = todayKey();
+    data.days[k] = Math.max(0, (data.days[k] || 0) - 1);
+    save();
+    renderAll();
+  }
+
+  function clampInterval(v){
+    if(isNaN(v)) v = 2;
+    v = Math.round(v * 2) / 2; // snap to 0.5
+    if(v < 1) v = 1;
+    if(v > 5) v = 5;
+    return v;
+  }
+
+  function startFocus(){
+    if(focusRunning) return;
+    focusRunning = true;
+    focusToggle.textContent = 'Stop';
+    focusToggle.classList.add('active');
+    tapCore.classList.add('focus-active');
+    tapCore.style.setProperty('--cycle', data.focusInterval + 's');
+    tapLabel.textContent = 'auto-counting… tap to pause';
+    focusTimer = setInterval(increment, data.focusInterval * 1000);
+  }
+
+  function stopFocus(){
+    focusRunning = false;
+    focusToggle.textContent = 'Start';
+    focusToggle.classList.remove('active');
+    tapCore.classList.remove('focus-active');
+    tapLabel.textContent = 'tap to count';
+    if(focusTimer) clearInterval(focusTimer);
+    focusTimer = null;
+  }
+
+  tapCore.addEventListener('click', () => {
+    if(focusRunning){ stopFocus(); return; }
+    increment();
+  });
+  decBtn.addEventListener('click', decrement);
+
+  focusToggle.addEventListener('click', () => {
+    focusRunning ? stopFocus() : startFocus();
+  });
+
+  function applyInterval(v){
+    data.focusInterval = clampInterval(v);
+    intervalInput.value = data.focusInterval;
+    intervalDisplay.textContent = data.focusInterval;
+    save();
+    if(focusRunning){
+      tapCore.style.setProperty('--cycle', data.focusInterval + 's');
+      clearInterval(focusTimer);
+      focusTimer = setInterval(increment, data.focusInterval * 1000);
+    }
+  }
+
+  intervalInput.addEventListener('change', () => applyInterval(parseFloat(intervalInput.value)));
+  intervalDown.addEventListener('click', () => applyInterval(data.focusInterval - 0.5));
+  intervalUp.addEventListener('click', () => applyInterval(data.focusInterval + 0.5));
+  resetTodayBtn.addEventListener('click', () => {
+    data.days[todayKey()] = 0;
+    save(); renderAll();
+    todayStat.classList.remove('flash');
+    void todayStat.offsetWidth;
+    todayStat.classList.add('flash');
+  });
+
+  gearBtn.addEventListener('click', () => overlay.classList.add('show'));
+  closeSheet.addEventListener('click', () => overlay.classList.remove('show'));
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.classList.remove('show'); });
+
+  vibrateToggle.addEventListener('click', () => { data.vibrate = !data.vibrate; save(); renderAll(); });
+  soundToggle.addEventListener('click', () => { data.sound = !data.sound; save(); renderAll(); });
+
+  malaSizeInput.addEventListener('change', () => {
+    let v = parseInt(malaSizeInput.value, 10);
+    if(isNaN(v) || v < 1) v = 108;
+    if(v > 1080) v = 1080;
+    data.malaSize = v;
+    save();
+    buildBeads();
+    renderAll();
+  });
+
+  let resetArmed = false;
+  let resetArmTimer = null;
+  const resetAllDefaultLabel = resetAllBtn.textContent;
+
+  resetAllBtn.addEventListener('click', () => {
+    if(!resetArmed){
+      resetArmed = true;
+      resetAllBtn.textContent = 'Tap again to confirm';
+      clearTimeout(resetArmTimer);
+      resetArmTimer = setTimeout(() => {
+        resetArmed = false;
+        resetAllBtn.textContent = resetAllDefaultLabel;
+      }, 3000);
+      return;
+    }
+    clearTimeout(resetArmTimer);
+    resetArmed = false;
+    resetAllBtn.textContent = resetAllDefaultLabel;
+    stopFocus();
+    data.lifetime = 0;
+    data.days = {};
+    save();
+    renderAll();
+    overlay.classList.remove('show');
+  });
+
+  load();
+})();
+</script>
+
+</body>
+</html>
